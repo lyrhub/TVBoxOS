@@ -32,6 +32,18 @@
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/ts_20" />
 
+            <TextView
+                android:id="@+id/tvSourceSpeedTestBtn"
+                android:layout_width="match_parent"
+                android:layout_height="28mm"
+                android:layout_marginTop="@dimen/vs_10"
+                android:background="@drawable/shape_user_focus"
+                android:focusable="true"
+                android:gravity="center"
+                android:text="源测速/选可用"
+                android:textColor="@android:color/white"
+                android:textSize="@dimen/ts_20" />
+
             <EditText
                 android:id="@+id/etSearch"
                 android:layout_width="match_parent"

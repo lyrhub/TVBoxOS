@@ -38,6 +38,7 @@ import com.github.tvbox.osc.ui.adapter.PinyinAdapter;
 import com.github.tvbox.osc.ui.adapter.SearchAdapter;
 import com.github.tvbox.osc.ui.dialog.RemoteDialog;
 import com.github.tvbox.osc.ui.dialog.SearchCheckboxDialog;
+import com.github.tvbox.osc.ui.dialog.SourceSpeedTestDialog;
 import com.github.tvbox.osc.ui.tv.widget.SearchKeyboard;
 import com.github.tvbox.osc.util.FastClickCheckUtil;
 import com.github.tvbox.osc.util.HawkConfig;
@@ -118,6 +119,7 @@ public class SearchActivity extends BaseActivity {
     private final List<Movie.Video> highMatchVods = new ArrayList<>();
     private boolean showHighMatchResults = false;
     private TextView tvSearchCheckboxBtn;
+    private TextView tvSourceSpeedTestBtn;
 
     private static HashMap<String, String> mCheckSources = null;
     private SearchCheckboxDialog mSearchCheckboxDialog = null;
@@ -179,6 +181,7 @@ public class SearchActivity extends BaseActivity {
         etSearch = findViewById(R.id.etSearch);
         tvSearch = findViewById(R.id.tvSearch);
         tvSearchCheckboxBtn = findViewById(R.id.tvSearchCheckboxBtn);
+        tvSourceSpeedTestBtn = findViewById(R.id.tvSourceSpeedTestBtn);
         tvClear = findViewById(R.id.tvClear);
         mGridView = findViewById(R.id.mGridView);
         keyboard = findViewById(R.id.keyBoardRoot);
@@ -383,6 +386,32 @@ public class SearchActivity extends BaseActivity {
                     }
                 });
                 mSearchCheckboxDialog.show();
+            }
+        });
+        // 二次开发新增：源测速 / 选可用源
+        tvSourceSpeedTestBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FastClickCheckUtil.check(view);
+                String wd = etSearch.getText().toString().trim();
+                if (TextUtils.isEmpty(wd)) {
+                    Toast.makeText(mContext, "请先输入搜索关键词再测速", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                List<SourceBean> searchAbleSource = ApiConfig.get().getSearchSourceBeanList();
+                if (searchAbleSource == null || searchAbleSource.isEmpty()) {
+                    Toast.makeText(mContext, "没有可搜索的源", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                SourceSpeedTestDialog dialog = new SourceSpeedTestDialog(SearchActivity.this, searchAbleSource, wd);
+                dialog.setOnUsableConfirmListener(new SourceSpeedTestDialog.OnUsableConfirmListener() {
+                    @Override
+                    public void onConfirm(HashMap<String, String> usableSources) {
+                        // 更新过滤集合，使后续搜索只用可用源
+                        mCheckSources = usableSources;
+                    }
+                });
+                dialog.show();
             }
         });
     }
@@ -678,7 +707,13 @@ public class SearchActivity extends BaseActivity {
     }
 
     private void initCheckedSourcesForSearch() {
-        mCheckSources = SearchHelper.getSourcesForSearch();
+        // 二次开发：优先使用"经测速勾选为可用"的源集合；没有则回退到原有的指定搜索源集合
+        HashMap<String, String> usable = SearchHelper.getUsableSources();
+        if (usable != null && !usable.isEmpty()) {
+            mCheckSources = usable;
+        } else {
+            mCheckSources = SearchHelper.getSourcesForSearch();
+        }
     }
 
     public static void setCheckedSourcesForSearch(HashMap<String,String> checkedSources) {

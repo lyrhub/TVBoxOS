@@ -35,6 +35,7 @@ import com.github.tvbox.osc.ui.dialog.ApiHistoryDialog;
 import com.github.tvbox.osc.ui.dialog.BackupDialog;
 import com.github.tvbox.osc.ui.dialog.DanmuApiDialog;
 import com.github.tvbox.osc.ui.dialog.SearchRemoteTvDialog;
+import com.github.tvbox.osc.ui.dialog.SecondaryApiDialog;
 import com.github.tvbox.osc.ui.dialog.SelectDialog;
 import com.github.tvbox.osc.ui.dialog.XWalkInitDialog;
 import com.github.tvbox.osc.util.DanmuHelper;
@@ -81,6 +82,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvRender;
     private TextView tvScale;
     private TextView tvApi;
+    private TextView tvSecondaryApi;
     private TextView tvApiLine;
     private View llApi;
     private View llApiHistory;
@@ -352,6 +354,32 @@ public class ModelSettingFragment extends BaseLazyFragment {
                         ((BaseActivity) mActivity).hideSysBar();
                         EventBus.getDefault().unregister(dialog);
                         apiDialog = null;
+                    }
+                });
+                dialog.show();
+            }
+        });
+
+        // 二次开发新增：第二配置源（与主源合并）
+        tvSecondaryApi = findViewById(R.id.tvSecondaryApi);
+        tvSecondaryApi.setText(Hawk.get(HawkConfig.SECONDARY_API_URL, ""));
+        findViewById(R.id.llSecondaryApi).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                SecondaryApiDialog dialog = new SecondaryApiDialog(mActivity);
+                dialog.setOnSecondaryApiListener(new SecondaryApiDialog.OnSecondaryApiListener() {
+                    @Override
+                    public void onChange(String secondaryUrl) {
+                        tvSecondaryApi.setText(secondaryUrl);
+                        // 变更后需要重新加载配置以应用合并
+                        restartAppAfterConfigChanged();
+                    }
+                });
+                dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface d) {
+                        ((BaseActivity) mActivity).hideSysBar();
                     }
                 });
                 dialog.show();

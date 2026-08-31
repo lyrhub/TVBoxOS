@@ -461,7 +461,13 @@ public class FastSearchActivity extends BaseActivity {
     }
 
     private void initCheckedSourcesForSearch() {
-        mCheckSources = SearchHelper.getSourcesForSearch();
+        // 二次开发：优先使用经测速勾选为可用的源集合
+        HashMap<String, String> usable = SearchHelper.getUsableSources();
+        if (usable != null && !usable.isEmpty()) {
+            mCheckSources = usable;
+        } else {
+            mCheckSources = SearchHelper.getSourcesForSearch();
+        }
     }
 
     private void search(String title) {

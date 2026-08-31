@@ -44,6 +44,11 @@ public class HawkConfig {
     public static final String SUBTITLE_EXO_SCALE = "subtitle_exo_scale";
     public static final String SUBTITLE_EXO_POSITION = "subtitle_exo_position";
     public static final String SOURCES_FOR_SEARCH = "checked_sources_for_search";
+    // 二次开发：源测速 & 可用源 & 第二配置源合并
+    public static final String USABLE_SOURCES = "usable_sources_for_search"; // HashMap<apiUrl, HashMap<sourceKey,"1">> 经测试勾选为可用的源
+    public static final String SOURCE_TEST_RESULTS = "source_test_results"; // 最近一次测速结果缓存（可选持久化）
+    public static final String SECONDARY_API_URL = "secondary_api_url"; // 第二个配置源地址
+    public static final String SECONDARY_API_HISTORY = "secondary_api_history"; // 第二配置源历史
     public static final String HOME_REC_STYLE = "home_rec_style";
     public static final String NOW_DATE = "now_date"; //当前日期
     public static final String REMOTE_TVBOX = "remote_tvbox_host";

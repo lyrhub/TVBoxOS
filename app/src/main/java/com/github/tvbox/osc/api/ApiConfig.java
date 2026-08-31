@@ -752,34 +752,10 @@ public class ApiConfig {
         SourceBean firstSite = null;
         for (JsonElement opt : infoJson.get("sites").getAsJsonArray()) {
             JsonObject obj = (JsonObject) opt;
-            if (!obj.has("key") || !obj.has("type") || !obj.has("api")) {
-                LOG.i("echo-skip incomplete site config: " + obj);
-                continue;
-            }
-            SourceBean sb = new SourceBean();
-            String siteKey = obj.get("key").getAsString().trim();
-            sb.setKey(siteKey);
-            sb.setName(obj.has("name")?obj.get("name").getAsString().trim():siteKey);
-            sb.setType(obj.get("type").getAsInt());
-            sb.setApi(obj.get("api").getAsString().trim());
-            sb.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
-            sb.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
-            sb.setChangeable(DefaultConfig.safeJsonInt(obj, "changeable", 1));
-            if(siteKey.startsWith("py_")){
-                sb.setFilterable(1);
-            }else {
-                sb.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
-            }
-            sb.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
-            sb.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
-            sb.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
-            sb.setPlayerType(DefaultConfig.safeJsonInt(obj, "playerType", -1));
-            sb.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
-            sb.setTimeout(DefaultConfig.safeJsonInt(obj, "timeout", 0));
-            sb.setClickSelector(DefaultConfig.safeJsonString(obj, "click", ""));
-            sb.setStyle(DefaultConfig.safeJsonString(obj, "style", ""));
+            SourceBean sb = buildSourceBean(obj);
+            if (sb == null) continue;
             if (firstSite == null) firstSite = sb;
-            sourceBeanList.put(siteKey, sb);
+            sourceBeanList.put(sb.getKey(), sb);
         }
         if (sourceBeanList != null && sourceBeanList.size() > 0) {
             String home = Hawk.get(HawkConfig.HOME_API, "");
@@ -950,6 +926,118 @@ public class ApiConfig {
                     AdBlocker.addAdHost(host.getAsString());
                 }
             }
+        }
+
+        // 二次开发新增：合并第二个配置源（站点 & 解析），去重
+        mergeSecondaryConfig(apiUrl);
+    }
+
+    /**
+     * 二次开发新增：把单个站点 JSON 解析为 SourceBean。缺少必要字段时返回 null。
+     */
+    private SourceBean buildSourceBean(JsonObject obj) {
+        if (obj == null || !obj.has("key") || !obj.has("type") || !obj.has("api")) {
+            LOG.i("echo-skip incomplete site config: " + obj);
+            return null;
+        }
+        SourceBean sb = new SourceBean();
+        String siteKey = obj.get("key").getAsString().trim();
+        sb.setKey(siteKey);
+        sb.setName(obj.has("name") ? obj.get("name").getAsString().trim() : siteKey);
+        sb.setType(obj.get("type").getAsInt());
+        sb.setApi(obj.get("api").getAsString().trim());
+        sb.setSearchable(DefaultConfig.safeJsonInt(obj, "searchable", 1));
+        sb.setQuickSearch(DefaultConfig.safeJsonInt(obj, "quickSearch", 1));
+        sb.setChangeable(DefaultConfig.safeJsonInt(obj, "changeable", 1));
+        if (siteKey.startsWith("py_")) {
+            sb.setFilterable(1);
+        } else {
+            sb.setFilterable(DefaultConfig.safeJsonInt(obj, "filterable", 1));
+        }
+        sb.setPlayerUrl(DefaultConfig.safeJsonString(obj, "playUrl", ""));
+        sb.setExt(DefaultConfig.safeJsonString(obj, "ext", ""));
+        sb.setJar(DefaultConfig.safeJsonString(obj, "jar", ""));
+        sb.setPlayerType(DefaultConfig.safeJsonInt(obj, "playerType", -1));
+        sb.setCategories(DefaultConfig.safeJsonStringList(obj, "categories"));
+        sb.setTimeout(DefaultConfig.safeJsonInt(obj, "timeout", 0));
+        sb.setClickSelector(DefaultConfig.safeJsonString(obj, "click", ""));
+        sb.setStyle(DefaultConfig.safeJsonString(obj, "style", ""));
+        return sb;
+    }
+
+    /**
+     * 二次开发新增：合并"第二个配置源"。
+     * 从 {@link HawkConfig#SECONDARY_API_URL} 读取第二配置地址，拉取并解析其 sites / parses，
+     * 追加到当前 sourceBeanList / parseBeanList 中，按 key/name 去重（已存在的不覆盖）。
+     * 同步执行，通常在配置加载线程中被调用。
+     */
+    private void mergeSecondaryConfig(String primaryApiUrl) {
+        String secondaryUrl = Hawk.get(HawkConfig.SECONDARY_API_URL, "");
+        if (secondaryUrl == null) return;
+        secondaryUrl = secondaryUrl.trim();
+        if (secondaryUrl.isEmpty()) return;
+        // 避免与主源相同或递归
+        if (secondaryUrl.equals(primaryApiUrl)) return;
+
+        try {
+            String savedTempKey = TempKey; // 保存主源的 TempKey
+            String realUrl = configUrl(secondaryUrl);
+            String secondaryTempKey = TempKey;
+            TempKey = savedTempKey; // 恢复
+            String body = com.github.catvod.net.OkHttp.string(realUrl);
+            if (TextUtils.isEmpty(body)) {
+                LOG.i("echo-merge secondary: empty body from " + realUrl);
+                return;
+            }
+            String json = FindResult(body, secondaryTempKey);
+            JsonObject secondJson = gson.fromJson(json, JsonObject.class);
+            if (secondJson == null) return;
+
+            int addedSites = 0;
+            if (secondJson.has("sites")) {
+                for (JsonElement opt : secondJson.get("sites").getAsJsonArray()) {
+                    if (!opt.isJsonObject()) continue;
+                    SourceBean sb = buildSourceBean(opt.getAsJsonObject());
+                    if (sb == null) continue;
+                    // 去重：key 已存在则跳过（保留主源）
+                    if (sourceBeanList.containsKey(sb.getKey())) continue;
+                    sourceBeanList.put(sb.getKey(), sb);
+                    addedSites++;
+                }
+            }
+
+            int addedParses = 0;
+            if (secondJson.has("parses")) {
+                for (JsonElement opt : secondJson.get("parses").getAsJsonArray()) {
+                    if (!opt.isJsonObject()) continue;
+                    JsonObject obj = opt.getAsJsonObject();
+                    if (!obj.has("name") || !obj.has("url")) continue;
+                    String name = obj.get("name").getAsString().trim();
+                    // 去重：同名解析已存在则跳过
+                    boolean exists = false;
+                    for (ParseBean pb : parseBeanList) {
+                        if (pb.getName() != null && pb.getName().equals(name)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (exists) continue;
+                    ParseBean pb = new ParseBean();
+                    pb.setName(name);
+                    pb.setUrl(obj.get("url").getAsString().trim());
+                    String ext = obj.has("ext") ? obj.get("ext").getAsJsonObject().toString() : "";
+                    pb.setExt(ext);
+                    pb.setType(DefaultConfig.safeJsonInt(obj, "type", 0));
+                    parseBeanList.add(pb);
+                    addedParses++;
+                }
+            }
+            // 合并后刷新搜索源缓存，使新增源可被搜索/测速使用
+            if (searchSourceBeanList != null) searchSourceBeanList.clear();
+            LOG.i("echo-merge secondary done: +" + addedSites + " sites, +" + addedParses + " parses");
+        } catch (Throwable th) {
+            th.printStackTrace();
+            LOG.i("echo-merge secondary failed: " + th.getMessage());
         }
     }
 

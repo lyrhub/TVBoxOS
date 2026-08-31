@@ -77,6 +77,45 @@ public class SearchHelper {
         return mCheckSources;
     }
 
+    /**
+     * 二次开发新增：读取当前配置源下"经测速勾选为可用"的源集合。
+     * 返回 null 表示没有做过筛选（即全部源都参与搜索）。
+     */
+    public static HashMap<String, String> getUsableSources() {
+        try {
+            String api = Hawk.get(HawkConfig.API_URL, "");
+            if (api.isEmpty()) return null;
+            HashMap<String, HashMap<String, String>> all = Hawk.get(HawkConfig.USABLE_SOURCES, new HashMap<>());
+            HashMap<String, String> usable = all.get(api);
+            if (usable == null || usable.isEmpty()) return null;
+            return usable;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 二次开发新增：保存当前配置源下勾选为可用的源集合。
+     * usable 为空/为 null 时清除该配置的记录（表示不再筛选，全部参与）。
+     */
+    public static void putUsableSources(HashMap<String, String> usable) {
+        String api = Hawk.get(HawkConfig.API_URL, "");
+        if (api.isEmpty()) return;
+        HashMap<String, HashMap<String, String>> all = Hawk.get(HawkConfig.USABLE_SOURCES, null);
+        if (usable == null || usable.isEmpty()) {
+            if (all == null) return;
+            all.remove(api);
+        } else {
+            if (all == null) all = new HashMap<>();
+            all.put(api, usable);
+        }
+        // 让搜索时的过滤集合同步更新为可用源
+        SearchActivity.setCheckedSourcesForSearch(usable);
+        Hawk.put(HawkConfig.USABLE_SOURCES, all);
+        // 同步写入原有的搜索勾选存储，保证两处逻辑一致
+        putCheckedSources(usable == null ? new HashMap<>() : usable, usable == null || usable.isEmpty());
+    }
+
     public static List<String> splitWords(String text) {
         List<String> result = new ArrayList<>();
         result.add(text);
