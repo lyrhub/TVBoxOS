@@ -43,9 +43,44 @@ jobs:
             --add-opens=java.base/java.io=ALL-UNNAMED
             --add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
 
-      - name: Upload APK artifact
+      - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: TVBox-java-debug-android4.4plus
-          path: app/build/outputs/apk/**/*.apk
+          path: app/build/outputs/apk/**/debug/*.apk
+          if-no-files-found: warn
+
+      # 生成一个发布用签名密钥库（自测/个人使用）。如需正式发布，可换成你自己的 keystore。
+      - name: Generate release keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore app/tvbox-release.jks \
+            -alias tvbox \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass tvbox123 -keypass tvbox123 \
+            -dname "CN=TVBox, OU=Dev, O=TVBox, L=NA, ST=NA, C=CN"
+
+      - name: Configure signing properties
+        run: |
+          {
+            echo "RELEASE_STORE_FILE=./tvbox-release.jks"
+            echo "RELEASE_STORE_PASSWORD=tvbox123"
+            echo "RELEASE_KEY_ALIAS=tvbox"
+            echo "RELEASE_KEY_PASSWORD=tvbox123"
+          } >> gradle.properties
+
+      - name: Build release APK (java flavor, minSdk 19 / Android 4.4+, signed + minified)
+        run: ./gradlew assembleJavaRelease --stacktrace --warning-mode all
+        env:
+          JAVA_TOOL_OPTIONS: >-
+            --add-opens=java.base/java.lang=ALL-UNNAMED
+            --add-opens=java.base/java.util=ALL-UNNAMED
+            --add-opens=java.base/java.io=ALL-UNNAMED
+            --add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TVBox-java-release-android4.4plus
+          path: app/build/outputs/apk/**/release/*.apk
           if-no-files-found: warn
