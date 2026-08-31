@@ -14,11 +14,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
+      # setup-android 接受 SDK 许可需要 JDK 17+；AGP 7.2.2 也能在 JDK 17 上运行。
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '11'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -26,12 +27,20 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APK (java flavor)
+      # 生成的 APK 依然按 app/build.gradle 的 minSdk 19 (java flavor)，可装 Android 4.4+。
+      # --add-opens 兜底解决 AGP 7.x 在 JDK 17 上偶发的模块访问限制。
+      - name: Build debug APK (java flavor, minSdk 19 / Android 4.4+)
         run: ./gradlew assembleJavaDebug --stacktrace --warning-mode all
+        env:
+          JAVA_TOOL_OPTIONS: >-
+            --add-opens=java.base/java.lang=ALL-UNNAMED
+            --add-opens=java.base/java.util=ALL-UNNAMED
+            --add-opens=java.base/java.io=ALL-UNNAMED
+            --add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TVBox-java-debug
+          name: TVBox-java-debug-android4.4plus
           path: app/build/outputs/apk/**/*.apk
           if-no-files-found: warn
