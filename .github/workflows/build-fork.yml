@@ -27,6 +27,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Chaquopy (Python 插件) 在项目评估阶段会读取 local.properties，缺失会导致
+      # "Failed to notify project evaluation listener" 报错，即使只构建 java flavor。
+      - name: Create local.properties with SDK path
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
       # 生成的 APK 依然按 app/build.gradle 的 minSdk 19 (java flavor)，可装 Android 4.4+。
       # --add-opens 兜底解决 AGP 7.x 在 JDK 17 上偶发的模块访问限制。
       - name: Build debug APK (java flavor, minSdk 19 / Android 4.4+)

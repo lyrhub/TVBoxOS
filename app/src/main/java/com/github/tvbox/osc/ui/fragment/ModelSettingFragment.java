@@ -95,6 +95,7 @@ public class ModelSettingFragment extends BaseLazyFragment {
     private TextView tvSearchView;
     private TextView tvShowPreviewText;
     private TextView tvFastSearchText;
+    private TextView tvBootAutoStartText;
     private TextView tvm3u8AdText;
     private TextView tvAutoSwitchLineText;
     private TextView tvRecStyleText;
@@ -122,6 +123,9 @@ public class ModelSettingFragment extends BaseLazyFragment {
     protected void init() {
         tvFastSearchText = findViewById(R.id.showFastSearchText);
         tvFastSearchText.setText(Hawk.get(HawkConfig.FAST_SEARCH_MODE, true) ? "开启" : "关闭");
+        // 二次开发新增：开机自启动开关
+        tvBootAutoStartText = findViewById(R.id.bootAutoStartText);
+        tvBootAutoStartText.setText(Hawk.get(HawkConfig.BOOT_AUTO_START, false) ? "开启" : "关闭");
         tvm3u8AdText = findViewById(R.id.m3u8AdText);
         tvm3u8AdText.setText(Hawk.get(HawkConfig.M3U8_PURIFY, false) ? "开启" : "关闭");
         tvDanmuOpenText = findViewById(R.id.danmuOpenText);
@@ -763,6 +767,19 @@ public class ModelSettingFragment extends BaseLazyFragment {
                 FastClickCheckUtil.check(v);
                 Hawk.put(HawkConfig.FAST_SEARCH_MODE, !Hawk.get(HawkConfig.FAST_SEARCH_MODE, true));
                 tvFastSearchText.setText(Hawk.get(HawkConfig.FAST_SEARCH_MODE, true) ? "开启" : "关闭");
+            }
+        });
+        // 二次开发新增：开机自启动开关
+        findViewById(R.id.llBootAutoStart).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FastClickCheckUtil.check(v);
+                boolean next = !Hawk.get(HawkConfig.BOOT_AUTO_START, false);
+                Hawk.put(HawkConfig.BOOT_AUTO_START, next);
+                tvBootAutoStartText.setText(next ? "开启" : "关闭");
+                if (next) {
+                    Toast.makeText(mContext, "已开启开机自启，部分盒子需在系统设置中授予自启动权限", Toast.LENGTH_LONG).show();
+                }
             }
         });
         findViewById(R.id.m3u8Ad).setOnClickListener(new View.OnClickListener() {
