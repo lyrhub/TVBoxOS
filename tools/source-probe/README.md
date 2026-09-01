@@ -7,7 +7,7 @@
 需要 Node.js 18+（推荐 20/22+，使用内置 `fetch`），无第三方依赖。
 
 ```bash
-node probe.mjs <url> [--json] [--timeout 10000] [--ua "..."]
+node probe.mjs <url> [--play] [--json] [--timeout 10000] [--ua "..."]
 ```
 
 示例：
@@ -15,6 +15,7 @@ node probe.mjs <url> [--json] [--timeout 10000] [--ua "..."]
 ```bash
 node probe.mjs https://cj.lziapi.com          # 命中 CMS API → 方式一
 node probe.mjs https://example.com --json     # JSON 输出
+node probe.mjs https://example.com --play      # 额外探测播放地址难度
 ```
 
 ## 探测逻辑
@@ -27,6 +28,26 @@ node probe.mjs https://example.com --json     # JSON 输出
 4. **信息不足**：首页抓取失败 → 提示人工分析。
 
 同时输出：建站系统识别、渲染方式统计、播放器/接口线索、播放地址处理提示。
+
+## `--play` 播放地址探测（可选）
+
+转源最难的一环是 `play()`——把某一集解析成真实可播地址。加 `--play` 会进一步：
+
+1. 从首页找一个详情页 → 抓取；
+2. 从详情页找播放页 → 抓取（找不到则分析详情页本身）；
+3. 分析播放页里的线索并给出**难度评级**：
+
+| 评级 | 含义 | 对应 play() 实现 |
+|------|------|------------------|
+| 易 ✅ | 源码直接含 `.m3u8`/`.mp4` 直链 | 直接 `parse:0` 返回 |
+| 中 ⚠ | 有加密的播放数据变量(`player_aaaa` 等)或独立播放接口 | 解密 / 请求接口后拿地址 |
+| 难 ❗ | 无直链/接口/加密变量线索 | 可能需 WebView 嗅探 |
+| 未知 ❓ | 详情/播放页抓取失败或线索不足 | 人工分析 |
+
+会输出探测到的疑似直链样例、探测过的详情页/播放页 URL。
+命中 CMS API(方式一)时自动跳过 play 探测（走接口/解析，无需嗅探）。
+
+> `--play` 会多抓几个页面，比基础探测慢，默认关闭。
 
 ## 退出码
 

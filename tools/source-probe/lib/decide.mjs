@@ -92,6 +92,7 @@ function build(p, rec) {
     target: p.base,
     cms: p.cms,
     html: p.html,
+    play: p.play || null,
     recommendation: rec,
   };
 }
@@ -127,6 +128,22 @@ export function renderReport(r) {
     L.push(`  - 渲染方式: ${r.html.rendering.toUpperCase()}  [详情链接 ${r.html.stats.detailLinks} 个 / script ${r.html.stats.scriptTags} 个]`);
     L.push("");
   }
+  if (r.play) {
+    L.push("play() 播放地址探测:");
+    if (r.play.ran === false) {
+      L.push("  - 跳过: " + r.play.reason);
+    } else {
+      L.push(`  - 难度: ${playBadge(r.play.level)}  (${r.play.reason})`);
+      (r.play.signals || []).forEach((s) => L.push("    · " + s));
+      if (r.play.directUrls && r.play.directUrls.length) {
+        L.push("  - 疑似直链样例:");
+        r.play.directUrls.forEach((u) => L.push("    " + u));
+      }
+      if (r.play.detailUrl) L.push(`  - 探测详情页: ${r.play.detailUrl}`);
+      if (r.play.playUrl) L.push(`  - 探测播放页: ${r.play.playUrl}`);
+    }
+    L.push("");
+  }
   L.push("下一步建议:");
   rec.nextSteps.forEach((x, i) => L.push(`  ${i + 1}. ${x}`));
   L.push("");
@@ -141,6 +158,14 @@ export function renderReport(r) {
 
 function confBadge(c) {
   return { high: "高 ✅", medium: "中 ⚠", low: "低(需人工) ❓" }[c] || c;
+}
+function playBadge(l) {
+  return {
+    easy: "易 ✅ (直链)",
+    medium: "中 ⚠ (需解密/接口)",
+    hard: "难 ❗ (可能需嗅探)",
+    unknown: "未知 ❓",
+  }[l] || l;
 }
 function indent(s, pad) {
   return s.split("\n").map((l) => pad + l).join("\n");

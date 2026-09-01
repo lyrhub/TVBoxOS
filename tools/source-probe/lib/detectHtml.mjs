@@ -86,9 +86,30 @@ export function analyzeHomepage(body, finalUrl, headers = {}) {
     renderingReason,
     stats: { anchors, detailLinks: detailLinks.length, scriptTags, textLen, hasAppRoot },
     detailPathPattern,
+    detailLinkList: detailLinks.slice(0, 10), // 供 play 探测复用
     playerHints,
     apiHints,
   };
+}
+
+/** 从任意 HTML 里收集"播放页"链接（/play/ 等，通常含两段数字 id）。导出给 play 探测用。 */
+export function collectPlayLinks(html, baseUrl) {
+  const links = new Set();
+  const re = /href=["']([^"']+)["']/gi;
+  let m;
+  const pat = /\/(play|vodplay|v_play|dianbo)\/[^"']*\d+/i;
+  while ((m = re.exec(html)) !== null) {
+    const href = m[1];
+    if (pat.test(href)) {
+      try {
+        links.add(new URL(href, baseUrl).toString());
+      } catch {
+        links.add(href);
+      }
+    }
+    if (links.size > 20) break;
+  }
+  return [...links];
 }
 
 function matchMeta(html, name) {

@@ -27,6 +27,7 @@ import {
 } from "./lib/http.mjs";
 import { probeCmsApi } from "./lib/detectCms.mjs";
 import { analyzeHomepage } from "./lib/detectHtml.mjs";
+import { probePlay } from "./lib/detectPlay.mjs";
 import { decide, renderReport } from "./lib/decide.mjs";
 
 async function main() {
@@ -34,6 +35,7 @@ async function main() {
     allowPositionals: true,
     options: {
       json: { type: "boolean", default: false },
+      play: { type: "boolean", default: false },
       timeout: { type: "string", default: "10000" },
       ua: { type: "string", default: DEFAULT_UA },
       help: { type: "boolean", short: "h", default: false },
@@ -73,8 +75,24 @@ async function main() {
     ? analyzeHomepage(homepage.body, homepage.finalUrl || base, homepage.headers)
     : null;
 
-  // 4) 综合判定
-  const result = decide({ base, cms, html, homepage, notes: ctx.notes });
+  // 4) 可选：play() 探测（进详情/播放页分析播放地址难度）
+  let play = null;
+  if (values.play) {
+    if (cms?.found) {
+      play = { ran: false, reason: "已命中 CMS API(方式一)，播放走接口/解析，无需 play 探测" };
+    } else if (homepage) {
+      try {
+        play = await probePlay(base, homepage.body, html, { timeout, ua });
+      } catch (e) {
+        play = { ran: true, level: "unknown", reason: "play 探测出错: " + e.message, signals: [], trail: [] };
+      }
+    } else {
+      play = { ran: false, reason: "首页抓取失败，跳过 play 探测" };
+    }
+  }
+
+  // 5) 综合判定
+  const result = decide({ base, cms, html, homepage, play, notes: ctx.notes });
 
   if (values.json) {
     console.log(JSON.stringify(result, null, 2));
@@ -93,12 +111,14 @@ function printUsage() {
 
 选项:
   --json            以 JSON 输出结果
+  --play            额外探测播放地址难度(进详情页/播放页分析，较慢)
   --timeout <ms>    单请求超时，默认 10000
   --ua "<string>"   自定义 User-Agent
   -h, --help        显示帮助
 
 示例:
   node probe.mjs https://example.com
+  node probe.mjs example.com --play
   node probe.mjs example.com --json --timeout 8000
 `);
 }
